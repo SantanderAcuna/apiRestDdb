@@ -2,65 +2,135 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Tarea;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Tarea;
 
 class TareaController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Muestra una lista de tareas.
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index()
     {
-        //
+        $tareas = Tarea::all();
+
+        return response()->json($tareas, 200);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Retorna la información básica de una tarea en formato JSON.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function create()
+    public function show($id)
     {
-        //
+        $tarea = Tarea::findOrFail($id);
+
+        return response()->json([
+            'titulo' => $tarea->titulo,
+            'descripcion' => $tarea->descripcion,
+            'fecha_inicio' => $tarea->fecha_inicio,
+            'fecha_finalizacion' => $tarea->fecha_finalizacion,
+            'archivo_adjunto' => $tarea->archivo_adjunto,
+            'estado' => $tarea->estado,
+        ], 200);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Almacena una nueva tarea.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
-        //
+        // Valida los datos del formulario
+        $request->validate([
+            'titulo' => 'required|max:255',
+            'descripcion' => 'required',
+            'estado' => 'required|in:pendiente,en progreso,completada',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_finalizacion' => 'nullable|date|after_or_equal:fecha_inicio',
+            'archivo_adjunto' => 'nullable|file|mimes:pdf,doc,docx',
+
+            'estado.in' => 'El estado debe ser uno de los valores: pendiente, en progreso, completada.',
+            'fecha_finalizacion.after_or_equal' => 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.',
+            'archivo_adjunto.mimes' => 'El archivo adjunto debe ser un PDF o un documento de Word.',
+        ]);
+
+        // Crea una nueva tarea
+        $tarea = new Tarea;
+        $tarea->fill($request->only(['titulo', 'descripcion', 'estado', 'fecha_inicio', 'fecha_finalizacion']));
+
+        // Subir y guardar el archivo adjunto si está presente
+        if ($request->hasFile('archivo_adjunto')) {
+            $archivo = $request->file('archivo_adjunto');
+            $archivo->storeAs('archivos_adjuntos', $archivo->getClientOriginalName());
+            $tarea->archivo_adjunto = $archivo->getClientOriginalName();
+        }
+
+        $tarea->save();
+
+        return response()->json(['message' => 'Tarea creada exitosamente'], 201);
     }
 
     /**
-     * Display the specified resource.
+     * Actualiza una tarea existente.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function show(Tarea $tarea)
+    public function update(Request $request, $id)
     {
-        //
+        // Valida los datos del formulario
+        $request->validate([
+            'titulo' => 'required|max:255',
+            'descripcion' => 'required',
+            'estado' => 'required|in:pendiente,en progreso,completada',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_finalizacion' => 'nullable|date|after_or_equal:fecha_inicio',
+            'archivo_adjunto' => 'nullable|file|mimes:pdf,doc,docx', // Cambiar los tipos de archivo permitidos si es necesario
+        ], [
+            'estado.in' => 'El estado debe ser uno de los valores: pendiente, en progreso, completada.',
+            'fecha_finalizacion.after_or_equal' => 'La fecha de finalización debe ser posterior o igual a la fecha de inicio.',
+            'archivo_adjunto.mimes' => 'El archivo adjunto debe ser un PDF o un documento de Word.',
+        ]);
+
+        $tarea = Tarea::findOrFail($id);
+        $tarea->fill($request->only(['titulo', 'descripcion', 'estado', 'fecha_inicio', 'fecha_finalizacion']));
+
+        // Subir y guardar el archivo adjunto si está presente
+        if ($request->hasFile('archivo_adjunto')) {
+            $archivo = $request->file('archivo_adjunto');
+            $archivo->storeAs('archivos_adjuntos', $archivo->getClientOriginalName());
+            $tarea->archivo_adjunto = $archivo->getClientOriginalName();
+        }
+
+        $tarea->save();
+
+        return response()->json(['message' => 'Tarea actualizada exitosamente'], 200);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Tarea $tarea)
-    {
-        //
-    }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Tarea $tarea)
+    public function destroy($id)
     {
-        //
-    }
+        $tarea = Tarea::findOrFail($id);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Tarea $tarea)
-    {
-        //
+        // Eliminar archivo adjunto si existe
+        if (!empty($tarea->archivo_adjunto)) {
+            // Eliminar el archivo físico almacenado
+            $rutaArchivo = storage_path('app/archivos_adjuntos/' . $tarea->archivo_adjunto);
+            if (file_exists($rutaArchivo)) {
+                unlink($rutaArchivo);
+            }
+        }
+
+        $tarea->delete();
+
+        return response()->json(['message' => 'Tarea eliminada exitosamente'], 200);
     }
 }
