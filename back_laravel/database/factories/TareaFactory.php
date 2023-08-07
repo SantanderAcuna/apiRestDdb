@@ -16,8 +16,19 @@ class TareaFactory extends Factory
      */
     public function definition(): array
     {
+        $enumOptions
+            = [
+                'pendiente',
+                'en progreso',
+                'completada'
+            ];
         return [
-            //
+            'titulo' => fake()->name(),
+            'descripcion' => fake()->text(),
+            'fechha_inicio' => fake()->date(),
+            'fechha_finalizacion' => fake()->date(),
+            'archivo_adjunto' => fake()->image(),
+            'estado' => fake()->randomElement($enumOptions),
         ];
     }
 }
