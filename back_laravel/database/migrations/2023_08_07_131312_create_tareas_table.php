@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('tareas', function (Blueprint $table) {
             $table->id();
+            $table->string('titulo');
+            $table->text('descripcion');
+            $table->date('fechha_inicio')->nullable();
+            $table->date('fechha_finalizacion')->nullable();
+            $table->string('archivo_adjunto')->nullable();;
+            $table->enum('estado',['pendiente','en progreso','completada']);
             $table->timestamps();
         });
     }
